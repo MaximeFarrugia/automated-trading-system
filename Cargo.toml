@@ -1,0 +1,12 @@
+[workspace]
+resolver = "2"
+members = [
+    "coinbase-advanced-api",
+    "collector",
+    "data-processor",
+    "strategy",
+    "position-manager",
+    "models",
+    "indicators",
+    "types",
+]
