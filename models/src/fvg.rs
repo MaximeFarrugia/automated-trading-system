@@ -5,15 +5,14 @@ use rust_decimal::Decimal;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Queryable, Selectable, Insertable, Builder, Getters, Serialize, Deserialize)]
-#[diesel(table_name = crate::schema::candles)]
+#[diesel(table_name = crate::schema::fvgs)]
 #[diesel(check_for_backend(diesel::pg::Pg))]
-pub struct Candle {
+pub struct FVG {
     pair: String,
     open_time: chrono::DateTime<chrono::Utc>,
     timeframe: String,
-    open: Decimal,
     high: Decimal,
     low: Decimal,
-    close: Decimal,
-    size_in_millis: i64,
+    flow: String,
+    close_time: Option<chrono::DateTime<chrono::Utc>>,
 }

@@ -18,11 +18,11 @@ pub enum EventType {
 
 #[derive(Debug, Getters, Serialize, Deserialize)]
 pub struct Response<T> {
-    channel: String,
-    client_id: String,
-    timestamp: chrono::DateTime<chrono::Utc>,
-    sequence_num: usize,
-    events: Vec<T>,
+    pub channel: String,
+    pub client_id: String,
+    pub timestamp: chrono::DateTime<chrono::Utc>,
+    pub sequence_num: usize,
+    pub events: Vec<T>,
 }
 
 pub trait Channel {

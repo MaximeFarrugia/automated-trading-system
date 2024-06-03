@@ -9,7 +9,7 @@ use josekit::{
 };
 use rand::Rng;
 
-use crate::{error::Error, CoinbaseService};
+use crate::error::Error;
 
 pub struct Signer {
     signer: EcdsaJwsSigner,
@@ -24,7 +24,7 @@ impl Signer {
         });
     }
 
-    pub fn create_jwt(&self, service: CoinbaseService) -> anyhow::Result<String, Error> {
+    pub fn create_jwt(&self, uri: Option<&str>) -> anyhow::Result<String, Error> {
         let mut header = JwsHeader::new();
         let mut payload = JwtPayload::new();
         let nonce: String = rand::thread_rng()
@@ -43,7 +43,9 @@ impl Signer {
         payload.set_issuer("coinbase-cloud".to_owned());
         payload.set_not_before(&now);
         payload.set_expires_at(&exp);
-        payload.set_audience(vec![service.to_string()]);
+        if let Some(uri) = uri {
+            payload.set_claim("uri", Some(uri.into()))?;
+        }
         return Ok(jwt::encode_with_signer(&payload, &header, &self.signer)?);
     }
 }

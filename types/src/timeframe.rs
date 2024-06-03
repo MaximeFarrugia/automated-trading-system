@@ -1,5 +1,7 @@
 use chrono::{Datelike, TimeZone};
 use garde::Validate;
+use regex::Regex;
+use serde::{de::Visitor, Deserialize};
 
 #[derive(Debug, Validate)]
 pub enum Timeframe {
@@ -134,6 +136,58 @@ impl Timeframe {
         };
 
         return Ok(candle_open);
+    }
+}
+
+struct TimeframeVisitor;
+
+impl<'de> Visitor<'de> for TimeframeVisitor {
+    type Value = Timeframe;
+
+    fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
+        return formatter.write_str(
+            "a string in the format 'xM', 'xW', 'xD', 'xh' or 'xm' where x is a positive integer",
+        );
+    }
+
+    fn visit_str<E>(self, v: &str) -> Result<Self::Value, E>
+    where
+        E: serde::de::Error,
+    {
+        let regex = Regex::new(r"^(\d+)([MWDhm])$").map_err(E::custom)?;
+        let captures = regex
+            .captures(v)
+            .ok_or_else(|| E::custom("invalid format"))?;
+        let value_str = captures
+            .get(1)
+            .ok_or_else(|| E::custom("missing number"))?
+            .as_str();
+        let unit = captures
+            .get(2)
+            .ok_or_else(|| E::custom("missing unit"))?
+            .as_str();
+        let value = value_str.parse::<i64>().map_err(E::custom)?;
+
+        let timeframe = match unit {
+            "M" => Timeframe::Month(value),
+            "W" => Timeframe::Week(value),
+            "D" => Timeframe::Day(value),
+            "h" => Timeframe::Hour(value),
+            "m" => Timeframe::Minute(value),
+            _ => return Err(E::custom("invalid unit")),
+        };
+
+        timeframe.validate(&()).map_err(E::custom)?;
+        return Ok(timeframe);
+    }
+}
+
+impl<'de> Deserialize<'de> for Timeframe {
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: serde::Deserializer<'de>,
+    {
+        return deserializer.deserialize_string(TimeframeVisitor);
     }
 }
 

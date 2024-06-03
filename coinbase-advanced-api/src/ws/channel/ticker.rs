@@ -14,25 +14,25 @@ pub struct TickerChannel<'a> {
 
 #[derive(Debug, Getters, Serialize, Deserialize)]
 pub struct TickerEvent {
-    r#type: EventType,
-    tickers: Vec<Ticker>,
+    pub r#type: EventType,
+    pub tickers: Vec<Ticker>,
 }
 
 #[derive(Debug, Getters, Serialize, Deserialize)]
 pub struct Ticker {
-    r#type: String,
-    product_id: String,
-    price: Decimal,
-    volume_24_h: Decimal,
-    low_24_h: Decimal,
-    high_24_h: Decimal,
-    low_52_w: Decimal,
-    high_52_w: Decimal,
-    price_percent_chg_24_h: Decimal,
-    best_bid: Option<Decimal>,
-    best_bid_quantity: Option<Decimal>,
-    best_ask: Option<Decimal>,
-    best_ask_quantity: Option<Decimal>,
+    pub r#type: String,
+    pub product_id: String,
+    pub price: Decimal,
+    pub volume_24_h: Decimal,
+    pub low_24_h: Decimal,
+    pub high_24_h: Decimal,
+    pub low_52_w: Decimal,
+    pub high_52_w: Decimal,
+    pub price_percent_chg_24_h: Decimal,
+    pub best_bid: Option<Decimal>,
+    pub best_bid_quantity: Option<Decimal>,
+    pub best_ask: Option<Decimal>,
+    pub best_ask_quantity: Option<Decimal>,
 }
 
 impl<'a> Channel for TickerChannel<'a> {

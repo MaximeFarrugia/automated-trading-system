@@ -15,7 +15,7 @@ use serde::Serialize;
 use tokio::net::TcpStream;
 use tokio_tungstenite::{tungstenite::Message, MaybeTlsStream, WebSocketStream};
 
-use crate::{error::Error, signer::Signer, CoinbaseService};
+use crate::{error::Error, signer::Signer};
 
 use super::channel::Channel;
 
@@ -63,10 +63,7 @@ impl WsClient {
             ),
             product_ids: vec![product_id.into_owned()],
             channel: "heartbeats".to_owned(),
-            jwt: self
-                .signer
-                .create_jwt(CoinbaseService::Websocket)
-                .context("Creating JWT")?,
+            jwt: self.signer.create_jwt(None).context("Creating JWT")?,
             timestamp: SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .unwrap()
@@ -109,7 +106,7 @@ impl Client for WsClient {
                 r#type: "subscribe".to_owned(),
                 product_ids: vec![channel.product_id().into_owned()],
                 channel: channel.name().into_owned(),
-                jwt: self.signer.create_jwt(CoinbaseService::Websocket)?,
+                jwt: self.signer.create_jwt(None)?,
                 timestamp: SystemTime::now()
                     .duration_since(UNIX_EPOCH)
                     .unwrap()
@@ -134,7 +131,7 @@ impl Client for WsClient {
                     r#type: "unsubscribe".to_owned(),
                     product_ids: vec![channel.product_id().into_owned()],
                     channel: channel.name().into_owned(),
-                    jwt: self.signer.create_jwt(CoinbaseService::Websocket)?,
+                    jwt: self.signer.create_jwt(None)?,
                     timestamp: SystemTime::now()
                         .duration_since(UNIX_EPOCH)
                         .unwrap()

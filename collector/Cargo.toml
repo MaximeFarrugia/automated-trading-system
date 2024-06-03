@@ -12,6 +12,7 @@ coinbase-advanced-api = { path = "../coinbase-advanced-api/" }
 dotenvy = "0.15.7"
 futures = "0.3.30"
 redis = "0.25.3"
+serde = { version = "1.0.202", features = ["derive"] }
 serde_json = "1.0.116"
 thiserror = "1.0.59"
 tokio = { version = "1.37.0", features = ["full"] }

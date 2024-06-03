@@ -11,4 +11,16 @@ pub enum Error {
 
     #[error(transparent)]
     JsonError(#[from] serde_json::Error),
+
+    #[error(transparent)]
+    UrlParseError(#[from] url::ParseError),
+
+    #[error(transparent)]
+    ReqwestError(#[from] reqwest::Error),
+
+    #[error(transparent)]
+    HttpError(#[from] http::Error),
+
+    #[error(transparent)]
+    InvalidHeaderValueError(#[from] http::header::InvalidHeaderValue),
 }
