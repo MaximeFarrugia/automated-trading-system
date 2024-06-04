@@ -15,7 +15,7 @@ pub fn handle_candle_close(
     is_backtest: bool,
 ) -> anyhow::Result<()> {
     let data: Candle = serde_json::from_str(&payload).context("Parsing redis message to Candle")?;
-    let fvg_indicator = FvgIndicator::new(redis_pool.clone(), pg_pool.clone());
+    let fvg_indicator = FvgIndicator::new(redis_pool.clone(), pg_pool.clone(), is_backtest);
     let _ = fvg_indicator.process(&data)?;
     return Ok(());
 }

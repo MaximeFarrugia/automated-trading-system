@@ -160,7 +160,6 @@ async fn handle_socket(
             }
         });
     }
-    tracing::warn!("ICI 2");
 }
 
 async fn recv_broadcast(
@@ -178,6 +177,9 @@ async fn recv_broadcast(
             }
             WsBroadcastMessage::BacktestFvg(x) => {
                 Some(serde_json::from_str::<serde_json::Value>(&x).context("BacktestFvg json_parse")?)
+            }
+            WsBroadcastMessage::BacktestFvgClose(x) => {
+                Some(serde_json::from_str::<serde_json::Value>(&x).context("BacktestFvgClose json_parse")?)
             }
             _ => None,
         };

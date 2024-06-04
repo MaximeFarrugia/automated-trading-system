@@ -1,3 +1,5 @@
+use std::borrow::Cow;
+
 use anyhow::Context;
 use diesel::{prelude::*, r2d2::ConnectionManager, PgConnection};
 use models::{
@@ -5,22 +7,26 @@ use models::{
     schema::{candles, fvgs},
     Candle,
 };
+use redis::Commands;
 
 use crate::candle_close::CandleCloseIndicator;
 
 pub struct FvgIndicator {
     redis_pool: r2d2::Pool<redis::Client>,
     pg_pool: r2d2::Pool<ConnectionManager<PgConnection>>,
+    is_backtest: bool,
 }
 
 impl FvgIndicator {
     pub fn new(
         redis_pool: r2d2::Pool<redis::Client>,
         pg_pool: r2d2::Pool<ConnectionManager<PgConnection>>,
+        is_backtest: bool,
     ) -> Self {
         return Self {
             redis_pool,
             pg_pool,
+            is_backtest,
         };
     }
 
@@ -109,6 +115,33 @@ impl FvgIndicator {
 
         return Ok(fvgs);
     }
+
+    fn publish_fvgs(
+        &self,
+        fvgs: Vec<FVG>,
+        channel: Cow<'static, str>,
+    ) -> anyhow::Result<()> {
+        let redis_conn = &mut self
+            .redis_pool
+            .get()
+            .context("Getting connection from redis_pool")?;
+        let channel = if self.is_backtest {
+            Cow::Owned(format!("backtest-{channel}"))
+        } else {
+            channel
+        };
+        for fvg in fvgs.iter() {
+            redis_conn
+                .publish(
+                    channel.to_string(),
+                    serde_json::to_string(fvg).context(format!(
+                        "Stringify result for publishing on redis {channel}"
+                    ))?,
+                )
+                .context(format!("Publishing to redis {channel} channel"))?;
+        }
+        return Ok(());
+    }
 }
 
 impl CandleCloseIndicator for FvgIndicator {
@@ -119,7 +152,12 @@ impl CandleCloseIndicator for FvgIndicator {
             .context("Getting connection from pg_pool")?;
         let new_fvg = self.handle_fvg_creation(candle, pg_conn)?;
         let closed_fvgs = self.handle_closed_fvgs(candle, pg_conn)?;
+
         println!("new_fvg: {new_fvg:#?} closed_fvgs: {closed_fvgs:#?}");
+        if let Some(new_fvg) = new_fvg {
+            self.publish_fvgs(vec![new_fvg], Cow::Borrowed("fvg")).context("publishing new_fvg")?;
+        }
+        self.publish_fvgs(closed_fvgs, Cow::Borrowed("fvg_close")).context("publishing closed_fvgs")?;
         return Ok(());
     }
 }

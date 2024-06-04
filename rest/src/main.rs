@@ -53,6 +53,8 @@ pub enum WsBroadcastMessage {
     BacktestCandle(String),
     Fvg(String),
     BacktestFvg(String),
+    FvgClose(String),
+    BacktestFvgClose(String),
 }
 
 async fn handle_redis_message(msg: redis::Msg, state: AppState) -> anyhow::Result<()> {
@@ -65,6 +67,8 @@ async fn handle_redis_message(msg: redis::Msg, state: AppState) -> anyhow::Resul
         "backtest-candle_close" => serde_json::to_string(&WsBroadcastMessage::BacktestCandle(payload))?,
         "fvg" => serde_json::to_string(&WsBroadcastMessage::Fvg(payload))?,
         "backtest-fvg" => serde_json::to_string(&WsBroadcastMessage::BacktestFvg(payload))?,
+        "fvg_close" => serde_json::to_string(&WsBroadcastMessage::FvgClose(payload))?,
+        "backtest-fvg_close" => serde_json::to_string(&WsBroadcastMessage::BacktestFvgClose(payload))?,
         _ => bail!("No handler for redis channel {channel}"),
     };
 
@@ -86,6 +90,10 @@ async fn handle_redis_sub(state: AppState) -> anyhow::Result<()> {
 
     pubsub.subscribe("candle_close")?;
     pubsub.subscribe("backtest-candle_close")?;
+    pubsub.subscribe("fvg")?;
+    pubsub.subscribe("backtest-fvg")?;
+    pubsub.subscribe("fvg_close")?;
+    pubsub.subscribe("backtest-fvg_close")?;
     loop {
         let msg = pubsub.get_message()?;
         let res = handle_redis_message(msg, state.clone()).await;
