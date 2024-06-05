@@ -24,7 +24,7 @@ use diesel::prelude::*;
 use futures::{stream::SplitSink, SinkExt, StreamExt};
 use models::{
     fvg::FVG,
-    schema::{candles, fvgs},
+    schema::{candles, fvgs, trades},
     Candle,
 };
 use redis::Commands;
@@ -80,6 +80,7 @@ async fn backtest(
 
     diesel::delete(candles::table).execute(pg_conn)?;
     diesel::delete(fvgs::table).execute(pg_conn)?;
+    diesel::delete(trades::table).execute(pg_conn)?;
     while start_timestamp < end_timestamp {
         let candles_request = CandlesBuilder::default()
             .product_id(Cow::Borrowed("BTC-USD"))

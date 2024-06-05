@@ -33,8 +33,8 @@ fn init_redis_pool() -> anyhow::Result<r2d2::Pool<redis::Client>> {
     let redis_client = redis::Client::open(redis_url)?;
 
     return r2d2::Pool::builder()
-        .max_size(50)
-        .min_idle(Some(10))
+        .max_size(5)
+        .min_idle(Some(1))
         .build(redis_client)
         .context("Creating RedisPool");
 }

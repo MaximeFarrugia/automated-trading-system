@@ -25,4 +25,24 @@ diesel::table! {
     }
 }
 
-diesel::allow_tables_to_appear_in_same_query!(candles, fvgs,);
+diesel::table! {
+    trades (pair, open_time, timeframe) {
+        pair -> Text,
+        open_time -> Timestamptz,
+        timeframe -> Text,
+        fill_time -> Nullable<Timestamptz>,
+        quantity -> Numeric,
+        entry -> Numeric,
+        stop_loss -> Numeric,
+        take_profit -> Numeric,
+        flow -> Text,
+        close_time -> Nullable<Timestamptz>,
+        close -> Nullable<Numeric>,
+    }
+}
+
+diesel::allow_tables_to_appear_in_same_query!(
+    candles,
+    fvgs,
+    trades,
+);

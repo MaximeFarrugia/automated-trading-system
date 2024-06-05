@@ -37,8 +37,8 @@ fn init_pg_pool(is_backtest: bool) -> anyhow::Result<r2d2::Pool<ConnectionManage
     let manager = ConnectionManager::<PgConnection>::new(database_url);
 
     return r2d2::Pool::builder()
-        .max_size(50)
-        .min_idle(Some(10))
+        .max_size(5)
+        .min_idle(Some(1))
         .build(manager)
         .context(format!("Creating PgPool is_backtest={is_backtest}"));
 }
