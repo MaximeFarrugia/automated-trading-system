@@ -26,6 +26,17 @@ diesel::table! {
 }
 
 diesel::table! {
+    swings (pair, open_time, timeframe) {
+        pair -> Text,
+        open_time -> Timestamptz,
+        timeframe -> Text,
+        price -> Numeric,
+        flow -> Text,
+        close_time -> Nullable<Timestamptz>,
+    }
+}
+
+diesel::table! {
     trades (pair, open_time, timeframe) {
         pair -> Text,
         open_time -> Timestamptz,
@@ -44,5 +55,6 @@ diesel::table! {
 diesel::allow_tables_to_appear_in_same_query!(
     candles,
     fvgs,
+    swings,
     trades,
 );

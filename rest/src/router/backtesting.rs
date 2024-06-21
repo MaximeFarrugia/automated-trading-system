@@ -24,7 +24,7 @@ use diesel::prelude::*;
 use futures::{stream::SplitSink, SinkExt, StreamExt};
 use models::{
     fvg::FVG,
-    schema::{candles, fvgs, trades},
+    schema::{candles, fvgs, trades, swings},
     Candle,
 };
 use redis::Commands;
@@ -81,6 +81,7 @@ async fn backtest(
     diesel::delete(candles::table).execute(pg_conn)?;
     diesel::delete(fvgs::table).execute(pg_conn)?;
     diesel::delete(trades::table).execute(pg_conn)?;
+    diesel::delete(swings::table).execute(pg_conn)?;
     while start_timestamp < end_timestamp {
         let candles_request = CandlesBuilder::default()
             .product_id(Cow::Borrowed("BTC-USD"))
@@ -132,7 +133,7 @@ async fn backtest(
 
 #[derive(Debug, Deserialize)]
 struct WsPagination {
-    timeframe: Timeframe,
+    timeframe: Option<Timeframe>,
 }
 
 async fn ws_handler(
@@ -182,14 +183,28 @@ async fn recv_broadcast(
             WsBroadcastMessage::BacktestFvgClose(x) => {
                 Some(serde_json::from_str::<serde_json::Value>(&x).context("BacktestFvgClose json_parse")?)
             }
+            WsBroadcastMessage::BacktestSwing(x) => {
+                Some(serde_json::from_str::<serde_json::Value>(&x).context("BacktestSwing json_parse")?)
+            }
+            WsBroadcastMessage::BacktestSwingClose(x) => {
+                Some(serde_json::from_str::<serde_json::Value>(&x).context("BacktestSwingClose json_parse")?)
+            }
+            WsBroadcastMessage::BacktestStrategyFvg(x) => {
+                println!("wef");
+                Some(serde_json::from_str::<serde_json::Value>(&x).context("BacktestStrategyFvg json_parse")?)
+            }
             _ => None,
         };
         if let Some(x) = res {
             let pair = x.get("pair");
             let timeframe = x.get("timeframe");
-            if pair.is_some_and(|x| x.as_str().unwrap() == product_id.as_str())
-                && timeframe.is_some_and(|x| x.as_str().unwrap() == params.timeframe.to_string().as_str())
-            {
+            let pair_match = pair.is_some_and(|x| x.as_str().unwrap() == product_id.as_str());
+            let timeframe_match = if let Some(tf) = params.timeframe.as_ref() {
+                timeframe.is_some_and(|x| x.as_str().unwrap() == tf.to_string())
+            } else {
+                true
+            };
+            if pair_match && timeframe_match {
                 client_tx.lock().await.send(msg).await.context("Send Msg to ws client")?;
             }
         }

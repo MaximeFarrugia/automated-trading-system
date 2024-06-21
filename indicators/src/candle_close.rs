@@ -2,7 +2,7 @@ use anyhow::Context;
 use diesel::{r2d2::ConnectionManager, PgConnection};
 use models::Candle;
 
-use crate::fvg::FvgIndicator;
+use crate::{fvg::FvgIndicator, swing::SwingIndicator};
 
 pub trait CandleCloseIndicator {
     fn process(&self, candle: &Candle) -> anyhow::Result<()>;
@@ -16,6 +16,8 @@ pub fn handle_candle_close(
 ) -> anyhow::Result<()> {
     let data: Candle = serde_json::from_str(&payload).context("Parsing redis message to Candle")?;
     let fvg_indicator = FvgIndicator::new(redis_pool.clone(), pg_pool.clone(), is_backtest);
+    let fractal_swing_indicator = SwingIndicator::new(redis_pool.clone(), pg_pool.clone(), is_backtest);
     let _ = fvg_indicator.process(&data)?;
+    let _ = fractal_swing_indicator.process(&data)?;
     return Ok(());
 }

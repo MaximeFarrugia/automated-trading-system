@@ -3,21 +3,20 @@ use std::borrow::Cow;
 use anyhow::Context;
 use diesel::{prelude::*, r2d2::ConnectionManager, PgConnection};
 use models::{
-    fvg::{FVGBuilder, FVG},
-    schema::{candles, fvgs},
-    Candle,
+    schema::{candles, swings},
+    Candle, swing::{SwingBuilder, Swing},
 };
 use redis::Commands;
 
 use crate::candle_close::CandleCloseIndicator;
 
-pub struct FvgIndicator {
+pub struct SwingIndicator {
     redis_pool: r2d2::Pool<redis::Client>,
     pg_pool: r2d2::Pool<ConnectionManager<PgConnection>>,
     is_backtest: bool,
 }
 
-impl FvgIndicator {
+impl SwingIndicator {
     pub fn new(
         redis_pool: r2d2::Pool<redis::Client>,
         pg_pool: r2d2::Pool<ConnectionManager<PgConnection>>,
@@ -30,11 +29,11 @@ impl FvgIndicator {
         };
     }
 
-    fn get_last_candle(
+    fn get_last_candles(
         &self,
         candle: &Candle,
         pg_conn: &mut r2d2::PooledConnection<ConnectionManager<PgConnection>>,
-    ) -> anyhow::Result<Option<Candle>> {
+    ) -> anyhow::Result<Vec<Candle>> {
         let candle = candles::table
             .filter(
                 candles::pair
@@ -44,82 +43,78 @@ impl FvgIndicator {
             )
             .select(Candle::as_select())
             .order(candles::open_time.desc())
-            .limit(1)
-            .offset(1)
-            .get_result(pg_conn)
-            .optional()?;
+            .limit(4)
+            .get_results(pg_conn)?;
 
         return Ok(candle);
     }
 
-    fn handle_fvg_creation(
+    fn handle_swing_creation(
         &self,
         candle: &Candle,
         pg_conn: &mut r2d2::PooledConnection<ConnectionManager<PgConnection>>,
-    ) -> anyhow::Result<Option<FVG>> {
-        let last_candle = self.get_last_candle(candle, pg_conn)?;
-        if last_candle.is_none() {
-            println!("sdf: {candle:#?} {last_candle:#?}");
+    ) -> anyhow::Result<Option<Swing>> {
+        let last_candles = self.get_last_candles(candle, pg_conn)?;
+        if last_candles.len() != 4 {
+            println!("wef: {candle:#?} {last_candles:#?}");
             return Ok(None);
         }
+        let (first, second, third, fourth, fifth) = (&last_candles[3], &last_candles[2], &last_candles[1], &last_candles[0], candle);
 
-        let last_candle = last_candle.unwrap();
-        let mut fvg_builder = FVGBuilder::default();
-        if last_candle.high() < candle.low() {
-            fvg_builder
-                .high(candle.low().to_owned())
-                .low(last_candle.high().to_owned())
+        let mut swing_builder = SwingBuilder::default();
+        if third.low() < first.low() && third.low() < second.low() && third.low() < fourth.low() && third.low() < fifth.low() {
+            swing_builder
+                .price(third.low().to_owned())
                 .flow("bull".to_owned());
-        } else if last_candle.low() > candle.high() {
-            fvg_builder
-                .high(last_candle.low().to_owned())
-                .low(candle.high().to_owned())
+        } else if third.high() > first.high() && third.high() > second.high() && third.high() > fourth.high() && third.high() > fifth.high() {
+            swing_builder
+                .price(third.high().to_owned())
                 .flow("bear".to_owned());
         } else {
             return Ok(None);
         }
 
-        fvg_builder
+        swing_builder
             .pair(candle.pair().to_owned())
-            .open_time(last_candle.open_time().to_owned())
+            .open_time(third.open_time().to_owned())
             .timeframe(candle.timeframe().to_owned())
             .close_time(None);
-        let fvg = fvg_builder.build()?;
-        let result: FVG = diesel::insert_into(fvgs::table)
-            .values(fvg)
+        let swing = swing_builder.build()?;
+        let result: Swing = diesel::insert_into(swings::table)
+            .values(swing)
             .get_result(pg_conn)?;
         return Ok(Some(result));
     }
 
-    fn handle_closed_fvgs(
+    fn handle_closed_swings(
         &self,
         candle: &Candle,
         pg_conn: &mut r2d2::PooledConnection<ConnectionManager<PgConnection>>,
-    ) -> anyhow::Result<Vec<FVG>> {
-        let fvgs = diesel::update(
-            fvgs::table.filter(
-                fvgs::pair
+    ) -> anyhow::Result<Vec<Swing>> {
+        let swings = diesel::update(
+            swings::table.filter(
+                swings::pair
                     .eq(candle.pair())
-                    .and(fvgs::timeframe.eq(candle.timeframe()))
-                    .and(fvgs::open_time.lt(candle.open_time()))
+                    .and(swings::timeframe.eq(candle.timeframe()))
+                    .and(swings::open_time.lt(candle.open_time()))
                     .and(
-                        fvgs::flow
+                        swings::flow
                             .eq("bull")
-                            .and(fvgs::low.gt(candle.close()))
-                            .or(fvgs::flow.eq("bear").and(fvgs::high.lt(candle.close()))),
+                            .and(swings::price.gt(candle.close()))
+                            .or(swings::flow.eq("bear").and(swings::price.lt(candle.close()))),
                     )
-                    .and(fvgs::close_time.is_null()),
+                    .and(swings::close_time.is_null()),
             ),
         )
-        .set(fvgs::close_time.eq(candle.open_time()))
+        .set(swings::close_time.eq(candle.open_time()))
         .get_results(pg_conn)?;
 
-        return Ok(fvgs);
+        return Ok(swings);
     }
 
-    fn publish_fvgs(
+    fn publish_swings(
         &self,
-        fvgs: Vec<FVG>,
+        swings: Vec<Swing>,
         channel: Cow<'static, str>,
     ) -> anyhow::Result<()> {
         let redis_conn = &mut self
@@ -131,11 +126,11 @@ impl FvgIndicator {
         } else {
             channel
         };
-        for fvg in fvgs.iter() {
+        for swing in swings.iter() {
             redis_conn
                 .publish(
                     channel.to_string(),
-                    serde_json::to_string(fvg).context(format!(
+                    serde_json::to_string(swing).context(format!(
                         "Stringify result for publishing on redis {channel}"
                     ))?,
                 )
@@ -145,20 +140,20 @@ impl FvgIndicator {
     }
 }
 
-impl CandleCloseIndicator for FvgIndicator {
+impl CandleCloseIndicator for SwingIndicator {
     fn process(&self, candle: &Candle) -> anyhow::Result<()> {
         let pg_conn = &mut self
             .pg_pool
             .get()
             .context("Getting connection from pg_pool")?;
-        let new_fvg = self.handle_fvg_creation(candle, pg_conn)?;
-        let closed_fvgs = self.handle_closed_fvgs(candle, pg_conn)?;
+        let new_swing = self.handle_swing_creation(candle, pg_conn)?;
+        let closed_swings = self.handle_closed_swings(candle, pg_conn)?;
 
-        // println!("new_fvg: {new_fvg:#?} closed_fvgs: {closed_fvgs:#?}");
-        if let Some(new_fvg) = new_fvg {
-            self.publish_fvgs(vec![new_fvg], Cow::Borrowed("fvg")).context("publishing new_fvg")?;
+        // println!("new_swing: {new_swing:#?} closed_swings: {closed_swings:#?}");
+        if let Some(new_swing) = new_swing {
+            self.publish_swings(vec![new_swing], Cow::Borrowed("swing")).context("publishing new_swing")?;
         }
-        self.publish_fvgs(closed_fvgs, Cow::Borrowed("fvg_close")).context("publishing closed_fvgs")?;
+        self.publish_swings(closed_swings, Cow::Borrowed("swing_close")).context("publishing closed_swings")?;
         return Ok(());
     }
 }

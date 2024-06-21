@@ -1,9 +1,11 @@
 mod fvg_close;
+mod strategy;
 
 use std::future;
 
 use anyhow::{bail, Context};
 use diesel::{r2d2::ConnectionManager, PgConnection};
+use strategy::{algo_a_b::AlgoABStrat, Strategy};
 use tracing::error;
 
 async fn handle_redis_message(msg: redis::Msg, state: AppState) -> anyhow::Result<()> {
@@ -53,6 +55,7 @@ fn init_redis_pool() -> anyhow::Result<r2d2::Pool<redis::Client>> {
         .context("Creating RedisPool");
 }
 
+#[derive(Clone)]
 pub struct AppState {
     pg_pool: r2d2::Pool<ConnectionManager<PgConnection>>,
     pg_pool_backtest: r2d2::Pool<ConnectionManager<PgConnection>>,
@@ -66,31 +69,18 @@ async fn main() -> anyhow::Result<()> {
     let pg_pool = init_pg_pool(false)?;
     let pg_pool_backtest = init_pg_pool(true)?;
     let redis_pool = init_redis_pool()?;
-    let mut redis_sub_conn = redis_pool
-        .get()
-        .context("Get redis_sub_conn from redis_pool")?;
-    let mut pubsub = redis_sub_conn.as_pubsub();
+    let state = AppState {
+        pg_pool,
+        pg_pool_backtest,
+        redis_pool,
+    };
 
-    pubsub.subscribe("fvg_close")?;
-    pubsub.subscribe("backtest-fvg_close")?;
-    loop {
-        let msg = pubsub.get_message()?;
-        let pg_pool = pg_pool.clone();
-        let pg_pool_backtest = pg_pool_backtest.clone();
-        let redis_pool = redis_pool.clone();
-        let state = AppState {
-            pg_pool,
-            pg_pool_backtest,
-            redis_pool,
-        };
-
-        tokio::spawn(async {
-            let res = handle_redis_message(msg, state).await;
-
-            if let Err(err) = res {
-                error!("{err:#}");
-            }
-            future::ready(())
-        });
-    }
+    let state_tmp = state.clone();
+    let strategy = tokio::spawn(async move {
+        if let Err(err) = AlgoABStrat::run(state_tmp).await {
+            tracing::error!("{err:#}");
+        }
+    });
+    let _ = strategy.await?;
+    return Ok(());
 }

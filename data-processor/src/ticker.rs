@@ -54,14 +54,13 @@ pub fn handle_ticker(
     let data: Response<TickerEvent> =
         serde_json::from_str(&payload).context("Parsing redis message to Response<TickerEvent>")?;
     let timeframes = [
-        Timeframe::Minute(1),
+        Timeframe::Minute(2),
         Timeframe::Minute(5),
         Timeframe::Minute(15),
         Timeframe::Hour(1),
-        Timeframe::Hour(12),
+        Timeframe::Hour(4),
         Timeframe::Day(1),
         Timeframe::Week(1),
-        Timeframe::Month(1),
     ];
 
     for event in data.events() {

@@ -9,6 +9,7 @@ edition = "2021"
 anyhow = "1.0.82"
 chrono = { version = "0.4.38", features = ["serde"] }
 models = { path = "../models/" }
+types = { path = "../types/" }
 diesel = { version = "2.1.6", features = ["postgres", "r2d2"] }
 futures = "0.3.30"
 redis = { version = "0.25.3", features = ["r2d2"] }
@@ -19,3 +20,4 @@ r2d2 = "0.8.10"
 tracing = "0.1.40"
 tracing-subscriber = "0.3.18"
 rust_decimal = "1.35.0"
+async-trait = "0.1.80"

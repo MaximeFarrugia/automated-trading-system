@@ -1,5 +1,6 @@
 mod candle_close;
 mod fvg;
+mod swing;
 
 use std::future;
 

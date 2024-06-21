@@ -55,6 +55,12 @@ pub enum WsBroadcastMessage {
     BacktestFvg(String),
     FvgClose(String),
     BacktestFvgClose(String),
+    Swing(String),
+    BacktestSwing(String),
+    SwingClose(String),
+    BacktestSwingClose(String),
+    StrategyFvg(String),
+    BacktestStrategyFvg(String),
 }
 
 async fn handle_redis_message(msg: redis::Msg, state: AppState) -> anyhow::Result<()> {
@@ -69,6 +75,15 @@ async fn handle_redis_message(msg: redis::Msg, state: AppState) -> anyhow::Resul
         "backtest-fvg" => serde_json::to_string(&WsBroadcastMessage::BacktestFvg(payload))?,
         "fvg_close" => serde_json::to_string(&WsBroadcastMessage::FvgClose(payload))?,
         "backtest-fvg_close" => serde_json::to_string(&WsBroadcastMessage::BacktestFvgClose(payload))?,
+        "swing" => serde_json::to_string(&WsBroadcastMessage::Swing(payload))?,
+        "backtest-swing" => serde_json::to_string(&WsBroadcastMessage::BacktestSwing(payload))?,
+        "swing_close" => serde_json::to_string(&WsBroadcastMessage::SwingClose(payload))?,
+        "backtest-swing_close" => serde_json::to_string(&WsBroadcastMessage::BacktestSwingClose(payload))?,
+        "strategy_fvg" => serde_json::to_string(&WsBroadcastMessage::StrategyFvg(payload))?,
+        "backtest-strategy_fvg" => {
+            println!("sdf");
+            serde_json::to_string(&WsBroadcastMessage::BacktestStrategyFvg(payload))?
+        },
         _ => bail!("No handler for redis channel {channel}"),
     };
 
@@ -94,6 +109,12 @@ async fn handle_redis_sub(state: AppState) -> anyhow::Result<()> {
     pubsub.subscribe("backtest-fvg")?;
     pubsub.subscribe("fvg_close")?;
     pubsub.subscribe("backtest-fvg_close")?;
+    pubsub.subscribe("swing")?;
+    pubsub.subscribe("backtest-swing")?;
+    pubsub.subscribe("swing_close")?;
+    pubsub.subscribe("backtest-swing_close")?;
+    pubsub.subscribe("strategy_fvg")?;
+    pubsub.subscribe("backtest-strategy_fvg")?;
     loop {
         let msg = pubsub.get_message()?;
         let res = handle_redis_message(msg, state.clone()).await;
