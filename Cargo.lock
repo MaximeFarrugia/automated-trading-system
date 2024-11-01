@@ -1344,6 +1344,7 @@ dependencies = [
  "proc-macro-error-attr",
  "proc-macro2",
  "quote",
+ "syn 1.0.109",
  "version_check",
 ]
 
@@ -1902,6 +1903,27 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a2eb9349b6444b326872e140eb1cf5e7c522154d69e7a0ffb0fb81c06b37543f"
 
 [[package]]
+name = "statig"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "42c467cc59664639bf70b8225b1b4a9c30d926f3e010c29e804bf940d618c663"
+dependencies = [
+ "statig_macro",
+]
+
+[[package]]
+name = "statig_macro"
+version = "0.3.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "bf4c61563b68df6e452ceece3fba1329c8c6a5d348fe17b0778fada28bc95fde"
+dependencies = [
+ "proc-macro-error",
+ "proc-macro2",
+ "quote",
+ "syn 1.0.109",
+]
+
+[[package]]
 name = "strategy"
 version = "0.1.0"
 dependencies = [
@@ -1916,6 +1938,7 @@ dependencies = [
  "redis",
  "rust_decimal",
  "serde_json",
+ "statig",
  "tokio",
  "tracing",
  "tracing-subscriber",

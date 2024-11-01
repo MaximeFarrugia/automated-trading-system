@@ -1,12 +1,9 @@
 mod fvg_close;
 mod strategy;
 
-use std::future;
-
 use anyhow::{bail, Context};
 use diesel::{r2d2::ConnectionManager, PgConnection};
-use strategy::{algo_a_b::AlgoABStrat, Strategy};
-use tracing::error;
+use strategy::{combo::Combo, Strategy};
 
 async fn handle_redis_message(msg: redis::Msg, state: AppState) -> anyhow::Result<()> {
     let channel: String = msg
@@ -77,7 +74,7 @@ async fn main() -> anyhow::Result<()> {
 
     let state_tmp = state.clone();
     let strategy = tokio::spawn(async move {
-        if let Err(err) = AlgoABStrat::run(state_tmp).await {
+        if let Err(err) = Combo::run(state_tmp).await {
             tracing::error!("{err:#}");
         }
     });

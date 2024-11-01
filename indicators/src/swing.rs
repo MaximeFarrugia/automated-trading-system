@@ -43,7 +43,8 @@ impl SwingIndicator {
             )
             .select(Candle::as_select())
             .order(candles::open_time.desc())
-            .limit(4)
+            // .limit(4)
+            .limit(2)
             .get_results(pg_conn)?;
 
         return Ok(candle);
@@ -55,20 +56,33 @@ impl SwingIndicator {
         pg_conn: &mut r2d2::PooledConnection<ConnectionManager<PgConnection>>,
     ) -> anyhow::Result<Option<Swing>> {
         let last_candles = self.get_last_candles(candle, pg_conn)?;
-        if last_candles.len() != 4 {
+        // if last_candles.len() != 4 {
+        if last_candles.len() != 2 {
             println!("wef: {candle:#?} {last_candles:#?}");
             return Ok(None);
         }
-        let (first, second, third, fourth, fifth) = (&last_candles[3], &last_candles[2], &last_candles[1], &last_candles[0], candle);
+        // let (first, second, third, fourth, fifth) = (&last_candles[3], &last_candles[2], &last_candles[1], &last_candles[0], candle);
+        let (first, second, third) = (&last_candles[1], &last_candles[0], candle);
 
         let mut swing_builder = SwingBuilder::default();
-        if third.low() < first.low() && third.low() < second.low() && third.low() < fourth.low() && third.low() < fifth.low() {
+        // if third.low() < first.low() && third.low() < second.low() && third.low() < fourth.low() && third.low() < fifth.low() {
+        //     swing_builder
+        //         .price(third.low().to_owned())
+        //         .flow("bull".to_owned());
+        // } else if third.high() > first.high() && third.high() > second.high() && third.high() > fourth.high() && third.high() > fifth.high() {
+        //     swing_builder
+        //         .price(third.high().to_owned())
+        //         .flow("bear".to_owned());
+        // } else {
+        //     return Ok(None);
+        // }
+        if second.low() < first.low() && second.low() < third.low() {
             swing_builder
-                .price(third.low().to_owned())
+                .price(second.low().to_owned())
                 .flow("bull".to_owned());
-        } else if third.high() > first.high() && third.high() > second.high() && third.high() > fourth.high() && third.high() > fifth.high() {
+        } else if second.high() > first.high() && second.high() > third.high() {
             swing_builder
-                .price(third.high().to_owned())
+                .price(second.high().to_owned())
                 .flow("bear".to_owned());
         } else {
             return Ok(None);
@@ -76,7 +90,8 @@ impl SwingIndicator {
 
         swing_builder
             .pair(candle.pair().to_owned())
-            .open_time(third.open_time().to_owned())
+            // .open_time(third.open_time().to_owned())
+            .open_time(second.open_time().to_owned())
             .timeframe(candle.timeframe().to_owned())
             .close_time(None);
         let swing = swing_builder.build()?;
